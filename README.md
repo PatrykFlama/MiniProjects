@@ -1,2 +1,4 @@
 # MiniProjects
-Projects/miniprojects that are to small to have dedicated repository
+1. [Arduino-based projects](./Arduino)
+
+* [Dirsizer](./Dirsizer)
