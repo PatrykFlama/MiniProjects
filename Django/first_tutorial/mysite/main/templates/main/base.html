@@ -2,6 +2,10 @@
 <html>
 <head>
     <style type="text/css">
+        html, body {
+            overflow-x: hidden;
+        }
+
         .sidenav {
             height: 100%;
             width: 160px;
@@ -22,9 +26,17 @@
             display: block;
         }
 
-        .sidenav a:hover {
+        .sidenav a:hover, .sidenav a.footer:hover {
             color: #f1f1f1;
             background-color: #2d2d2d;
+        }
+
+        .sidenav a.footer {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            color: #717171;
+            font-size: 15px;
         }
 
 
@@ -50,6 +62,7 @@
         <a href="/"> Home </a>
         <a href="/create"> Create </a>
         <a href="/2"> View </a>
+        <a href="/register" class="footer"> Register </a>
     </div>
 
     <div id="content" name="content" class="main">
