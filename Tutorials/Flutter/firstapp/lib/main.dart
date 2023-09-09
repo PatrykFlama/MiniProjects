@@ -29,9 +29,43 @@ class Home extends StatelessWidget {
         backgroundColor: Color.fromARGB(255, 82, 169, 0),
       ),
       body: Center(
-        child: Image.asset('assets/image1.jpg'),
+        // ---- BUTTONS ----
+        child: IconButton(
+          onPressed: () {},
+          icon: Icon(Icons.alternate_email),
+        ),
+
+        // child: ElevatedButton.icon(
+        //   onPressed: () {},
+        //   icon: Icon(Icons.mail),
+        //   label: Text('send mail'),
+        // ),
+
+        // child: ElevatedButton(
+        //   onPressed: () {
+        //     print('WOW');
+        //   },
+        //   child: Icon(Icons.ads_click),
+        //   style: ButtonStyle(
+        //     backgroundColor: MaterialStatePropertyAll(Colors.purple),
+        //   ),
+        // ),
+
+        // ----- ICONS -----
+        // child: Icon(
+        //   Icons.macro_off,
+        //   color: Colors.purple,
+        //   size: 50.0,
+        // ),
+
+        // ----- IMAGES -----
+        // child: Image.asset('assets/image1.jpg'),
+
         // child: Image.network(
         //     'https://images.unsplash.com/photo-1564754943164-e83c08469116?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Nnx8dmVydGljYWx8ZW58MHx8MHx8fDA%3D&w=1000&q=80'),
+
+        // ----- TEXT -----
+        // child: Text("Hello World!"),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {},
