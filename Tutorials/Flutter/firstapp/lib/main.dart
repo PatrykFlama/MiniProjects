@@ -28,8 +28,10 @@ class Home extends StatelessWidget {
         centerTitle: true,
         backgroundColor: Color.fromARGB(255, 82, 169, 0),
       ),
-      body: const Center(
-        child: Text('Hello World'),
+      body: Center(
+        child: Image.asset('assets/image1.jpg'),
+        // child: Image.network(
+        //     'https://images.unsplash.com/photo-1564754943164-e83c08469116?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Nnx8dmVydGljYWx8ZW58MHx8MHx8fDA%3D&w=1000&q=80'),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {},
