@@ -1,6 +1,7 @@
 // ignore_for_file: prefer_const_constructors, sort_child_properties_last, prefer_const_literals_to_create_immutables
 
 import 'package:flutter/material.dart';
+import 'package:carousel_slider/carousel_slider.dart';
 
 void main() {
   runApp(
@@ -44,6 +45,56 @@ class Home extends StatelessWidget {
 }
 
 Widget? widgetMain() {
+  return CarouselSlider(
+    options: CarouselOptions(viewportFraction: 1),
+    items: [
+      widgetText(),
+      widgetImage(),
+      widgetIcon(),
+      widgetButtons(),
+      widgetContainer(),
+      widgetRowsCols(),
+      widgetExpanded(),
+    ],
+  );
+}
+
+Widget widgetExpanded() {
+  return Row(
+    children: [
+      Expanded(
+        flex: 10,
+        child: Image.asset('assets/image2.jpg'),
+      ),
+      Expanded(
+        flex: 1,
+        child: Container(
+          padding: EdgeInsets.all(30),
+          color: Colors.cyan,
+          child: Text('1'),
+        ),
+      ),
+      Expanded(
+        flex: 2,
+        child: Container(
+          padding: EdgeInsets.all(30),
+          color: Colors.pinkAccent,
+          child: Text('2'),
+        ),
+      ),
+      Expanded(
+        flex: 3,
+        child: Container(
+          padding: EdgeInsets.all(30),
+          color: Colors.amber,
+          child: Text('3'),
+        ),
+      ),
+    ],
+  );
+}
+
+Widget widgetRowsCols() {
   return Row(
     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
     // Widget is by default - not needed here
@@ -69,10 +120,13 @@ Widget? widgetMain() {
             padding: EdgeInsets.all(30),
             color: Colors.pink,
           ),
-          Container(
-            child: Text('three'),
-            padding: EdgeInsets.all(40),
-            color: Colors.amber,
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Container(
+              child: Text('three'),
+              padding: EdgeInsets.all(40),
+              color: Colors.amber,
+            ),
           ),
         ],
       )
@@ -80,7 +134,7 @@ Widget? widgetMain() {
   );
 }
 
-Widget? widgetContainer() {
+Widget widgetContainer() {
   return Row(
     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
     children: [
@@ -101,7 +155,7 @@ Widget? widgetContainer() {
   );
 }
 
-Widget? widgetButtons() {
+Widget widgetButtons() {
   return Row(
     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
     children: [
@@ -131,7 +185,7 @@ Widget? widgetButtons() {
   );
 }
 
-Widget? widgetIcon() {
+Widget widgetIcon() {
   return Center(
     child: Icon(
       Icons.macro_off,
@@ -141,7 +195,7 @@ Widget? widgetIcon() {
   );
 }
 
-Widget? widgetImage() {
+Widget widgetImage() {
   return Row(
     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
     children: [
@@ -152,6 +206,6 @@ Widget? widgetImage() {
   );
 }
 
-Widget? widgetText() {
+Widget widgetText() {
   return Text('Hello World!');
 }
