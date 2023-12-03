@@ -63,7 +63,11 @@ class GUI:
     
     def on_press(self, event):
         if(event.key == 'enter'): self.coordinates.append([])
-        elif(event.key == 'backspace' and len(self.coordinates) > 1): self.coordinates.pop() 
+        elif(event.key == 'backspace'):
+            if(self.coordinates[len(self.coordinates)-1] != []):
+                self.coordinates[len(self.coordinates)-1] = []
+            elif(len(self.coordinates) > 1):
+                self.coordinates.pop() 
         elif(event.key == 'escape'): self.done = True
         elif(event.key == 'm'): self.mark_dots = not self.mark_dots
         elif(event.key == 'd'): self.draw = not self.draw
