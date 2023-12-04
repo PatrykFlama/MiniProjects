@@ -42,7 +42,7 @@ vector<double> calc_moments(vector<double>& x, vector<double>& y){
     M[n] = 0;
     M[n-1] = u[n-1];
     for(int k = n-2; k >= 0; k--){
-        M[k] = u[k] - q[k] * M[k+1];
+        M[k] = u[k] + q[k] * M[k+1];
     }
 
     return M;
