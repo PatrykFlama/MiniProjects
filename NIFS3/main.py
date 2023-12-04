@@ -99,7 +99,7 @@ class NIFS3:
         M[self.n-1] = u[self.n-1]
         k = self.n-2
         while k >= 0:
-            M[k] = u[k] - q[k] * M[k+1]
+            M[k] = u[k] + q[k] * M[k+1]
             k -= 1
         
         return M
