@@ -19,7 +19,7 @@ As for now there are 2 versions of this program:
 * gcc
 
 ## Usage
-compile `calc_nifs3.cpp` to `calc_nifs3.exe`
+compile `calc_nifs3.cpp` to `calc_nifs3.exe` (no longer mandatory)
 1. run `python extract_points.py` then `python main.py` 
 2. run `python sandbox.py`
 
