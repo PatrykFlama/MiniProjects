@@ -186,17 +186,50 @@ class GUI:
                 self.done = True
         return self.coordinates
 
-gui = GUI("text.png")
-res = gui.start()
 
-if not os.path.exists("./points"):
-    os.makedirs("./points")
-for file in os.listdir("./points"):
-    if file.endswith(".in"):
-        os.remove(f"points/{file}")
+print("1 for interactive editing mode (1c for cpp 1p for python)\n2 to display points from file")
+choice = input()
 
-for (i, coordinates) in enumerate(res):
-    with open(f"./points/points{i}.in", "w") as file:
-        file.write(f"{len(coordinates)}\n")
-        for(x, y) in coordinates:
-            file.write(f"{x} {-y}\n")
+if choice[0] == "1":
+    if len(choice) > 1:
+        if choice[1] == "c":
+            USE_CPP = True
+        elif choice[1] == "p":
+            USE_CPP = False
+
+    gui = GUI("text.png")
+    res = gui.start()
+
+    if not os.path.exists("./points"):
+        os.makedirs("./points")
+
+    for (i, coordinates) in enumerate(res):
+        if len(coordinates) == 0: continue
+
+        if os.path.exists(f"./points/points{i}.in"):
+            os.remove(f"./points/points{i}.in")
+
+        with open(f"./points/points{i}.in", "w") as file:
+            file.write(f"{len(coordinates)}\n")
+            for(x, y) in coordinates:
+                file.write(f"{x} {-y}\n")
+    for i in range(len(res), 100):
+        if os.path.exists(f"./points/points{i}.in"):
+            os.remove(f"./points/points{i}.in")
+
+elif choice[0] == "2":
+    nifs3 = NIFS3()
+    x = []
+    y = []
+    for file in os.listdir("./points"):
+        if file.endswith(".in"):
+            tx, ty = nifs3.get_nifs3([(float(x), float(y)) for (x, y) in [line.rstrip().split() for line in open(f"./points/{file}", "r")][1:]])
+            x += tx
+            y += ty
+
+            plt.plot(tx, ty)
+
+    ax = plt.gca()
+    ax.set_aspect('equal', adjustable='box')
+    plt.show()
+
