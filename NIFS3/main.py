@@ -126,14 +126,15 @@ class NIFS3:
 class GUI:
     def __init__(self, image_path):
         self.coordinates = [[]]
+        self.nifs3 = NIFS3()
         self.done = False
         self.mark_dots = True
         self.draw = True
-        self.nifs3 = NIFS3()
+        self.display_image = True
 
         plt.cla()
         self.image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-        plt.imshow(self.image, cmap='gray', vmin=0, vmax=255)
+        self.update_view()
 
         fig.canvas.callbacks.connect('button_press_event', self.on_click)
         fig.canvas.callbacks.connect('key_press_event', self.on_press)
@@ -142,11 +143,12 @@ class GUI:
               "Enter to separate point groups, backspace to remove last group\n"+
               "m to enable/disable marking points\n"+
               "d to enable/disable drawing\n"+
+              "i to enable/disable image background\n"+
               "Escape to end")
     
     def on_click(self, event):
         if self.draw:
-            if(event.button is MouseButton.LEFT):
+            if(event.button is MouseButton.LEFT and event.xdata is not None and event.ydata is not None):
                 self.coordinates[len(self.coordinates)-1].append((event.xdata, event.ydata))
             elif(event.button is MouseButton.RIGHT and len(self.coordinates[len(self.coordinates)-1]) > 0):
                 self.coordinates[len(self.coordinates)-1].pop()
@@ -162,11 +164,16 @@ class GUI:
         elif(event.key == 'escape'): self.done = True
         elif(event.key == 'm'): self.mark_dots = not self.mark_dots
         elif(event.key == 'd'): self.draw = not self.draw
+        elif(event.key == 'i'): self.display_image = not self.display_image
         self.update_view()
 
     def update_view(self):
         plt.cla()
-        plt.imshow(self.image, cmap='gray', vmin=0, vmax=255)
+
+        if self.display_image:
+            plt.imshow(self.image, cmap='gray', vmin=0, vmax=255)
+        else:
+            plt.imshow(self.image, cmap='gray', vmin=0, vmax=1)
 
         for c in self.coordinates:
             if(len(c) > 2):
