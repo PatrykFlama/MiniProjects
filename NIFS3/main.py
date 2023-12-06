@@ -169,6 +169,10 @@ print("1 for interactive editing mode\n2 to display points from file")
 choice = input()
 
 if choice[0] == "1":
+    if not os.path.exists("./text.png"):
+        print("Background image ./text.png not found!")
+        exit()
+
     gui = GUI("text.png")
     res = gui.start()
 
