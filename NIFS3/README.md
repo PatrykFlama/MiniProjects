@@ -1,14 +1,24 @@
-# NIFS3/bspline
+# NIFS3/b-spline
 
 ## Description
-This is a simple implementation of natural cubic spline function integrated with pyplot.   
-For fun (and speed) the module computing nifs3 is written in C++ and executed from python code.  
-As for now there are 2 versions of this program:
-1. interpolation points are choosen separately and saved in file, then plotted in another program
-   * `extract_points.py`
-   * `main.py`
-2. pyplot window is interactive and points will be saved after exiting the program
-    * `sandbox.py`
+This is a implementation of natural cubic spline function integrated with pyplot with simple function editor.   
+It is possible to save and load functions from files:
+* [./points/point{i}.txt](./points) - number of interpolation points for function {i}, followed by x and y coordinates of each point
+
+## How to use
+Run `python main.py`  
+you will have 2 options - to open editor or to display function from files [./points/point{i}.tx](./points)   
+In the editor:
+* left click to add point
+* right click to remove point
+* _escape_ to exit editor and save points to files
+* _enter_ to start new function
+* _backspace_ to remove last function or clear active one
+* _i_ to show/hide image background
+* _m_ to show/hide points
+* _d_ to enable/disable drawing
+
+to not overwrite {i}th function file simply leave it empty in the editor
 
 ## Requirements
 * python 3
@@ -16,10 +26,4 @@ As for now there are 2 versions of this program:
     * os
     * subprocess
     * cv2
-* gcc
-
-## Usage
-compile `calc_nifs3.cpp` to `calc_nifs3.exe` (no longer mandatory)
-1. run `python extract_points.py` then `python main.py` 
-2. run `python sandbox.py`
 

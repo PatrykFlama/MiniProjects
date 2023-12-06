@@ -5,11 +5,6 @@ from matplotlib.backend_bases import MouseButton
 import os
 import subprocess
 
-"""
-cpp script is faster (and better tested), but requires calc_nifs3.cpp to be compiled to calc_nifs3.exe
-python is python
-"""
-USE_CPP = False
 
 fig = plt.figure()
 ax = plt.gca()
@@ -25,34 +20,6 @@ class NIFS3:
         self.My = []
 
     def get_nifs3(self, points):
-        if USE_CPP:
-            return self.calc_nifs3_cpp(points)
-        else:
-            return self.calc_nifs3_py(points)
-    
-    def calc_nifs3_cpp(self, points):
-        x = []
-        y = []
-
-        p = subprocess.Popen(["calc_nifs3.exe"], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-
-        p.stdin.write(f"{len(points)}\n".encode("utf-8"))
-        for tx, ty in points:
-            p.stdin.write(f"{tx} {ty}\n".encode("utf-8"))
-            p.stdin.flush()
-
-        while True:
-            line = p.stdout.readline()
-            if not line:
-                break
-
-            a, b = line.rstrip().decode("utf-8").split()
-            x.append(float(a))
-            y.append(float(b))
-
-        return x, y
-    
-    def calc_nifs3_py(self, points):
         self.x0 = []
         self.y0 = []
         for x, y in points:
@@ -170,6 +137,8 @@ class GUI:
     def update_view(self):
         plt.cla()
 
+        plt.title(f"Editing function {len(self.coordinates)}")
+
         if self.display_image:
             plt.imshow(self.image, cmap='gray', vmin=0, vmax=255)
         else:
@@ -194,16 +163,10 @@ class GUI:
         return self.coordinates
 
 
-print("1 for interactive editing mode (1c for cpp 1p for python)\n2 to display points from file")
+print("1 for interactive editing mode\n2 to display points from file")
 choice = input()
 
 if choice[0] == "1":
-    if len(choice) > 1:
-        if choice[1] == "c":
-            USE_CPP = True
-        elif choice[1] == "p":
-            USE_CPP = False
-
     gui = GUI("text.png")
     res = gui.start()
 
@@ -225,6 +188,10 @@ if choice[0] == "1":
             os.remove(f"./points/points{i}.in")
 
 elif choice[0] == "2":
+    if not os.path.exists("./points"):
+        print("No points found")
+        exit()
+
     nifs3 = NIFS3()
     x = []
     y = []
