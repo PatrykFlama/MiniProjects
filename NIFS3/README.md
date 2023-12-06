@@ -2,8 +2,9 @@
 
 ## Description
 This is a implementation of natural cubic spline function integrated with pyplot with simple function editor.   
-It is possible to save and load functions from files:
-* [./points/point{i}.txt](./points) - number of interpolation points for function {i}, followed by x and y coordinates of each point
+It is possible to save and load functions from files [./points/point{i}.txt](./points) - number of interpolation points for function {i}, followed by x and y coordinates of each point.  
+Arguments _t_ for all functions are in range _[0, 1]_ and equidistant (calculated automatically).  
+For those arguments _t_, calculated points $u_k$ are in range _[0, 1]_ and distant by _0.001_
 
 ## How to use
 Run `python main.py`  

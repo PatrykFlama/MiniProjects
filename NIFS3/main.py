@@ -5,6 +5,7 @@ from matplotlib.backend_bases import MouseButton
 import os
 import subprocess
 
+resolution = 0.001
 
 fig = plt.figure()
 ax = plt.gca()
@@ -31,10 +32,11 @@ class NIFS3:
         res_x = []
         res_y = []
         T = self.t[0]
+        # could be in range 0, 1 and with M points => T = k/M 0<=k<=M, but this way it works with any arguemnts t
         while T <= self.t[len(self.t)-1]:
             res_x.append(self.calc_nifs3(T, self.x0, self.Mx))
             res_y.append(self.calc_nifs3(T, self.y0, self.My))
-            T += 0.001
+            T += resolution
 
         return res_x, res_y
 
