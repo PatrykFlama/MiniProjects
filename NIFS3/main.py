@@ -129,12 +129,16 @@ class GUI:
             self.update_view()
     
     def on_press(self, event):
-        if(event.key == 'enter'): self.coordinates.append([])
+        if(event.key == 'enter'): 
+            self.coordinates.append([])
+            self.resolution.append([])
         elif(event.key == 'backspace'):
             if(self.coordinates[len(self.coordinates)-1] != []):
                 self.coordinates[len(self.coordinates)-1] = []
+                self.resolution[len(self.resolution)-1] = []
             elif(len(self.coordinates) > 1):
                 self.coordinates.pop() 
+                self.resolution.pop()
         elif(event.key == 'escape'): self.done = True
         elif(event.key == 'm'): self.mark_dots = not self.mark_dots
         elif(event.key == 'd'): self.draw = not self.draw
@@ -152,7 +156,7 @@ class GUI:
     def update_view(self):
         plt.cla()
 
-        plt.title(f"Editing function {len(self.coordinates)}")
+        plt.title(f"Editing function {len(self.coordinates)}, resolution: {self.points_per_segment}")
 
         if self.display_image:
             plt.imshow(self.image, cmap='gray', vmin=0, vmax=255)
