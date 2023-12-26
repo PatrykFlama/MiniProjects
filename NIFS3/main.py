@@ -200,7 +200,7 @@ elif choice[0] == "2":
         print("No points found")
         exit()
 
-    print("press i for image background, m for marking points\n")
+    print("press i for image background, m for marking input points\n")
 
     nifs3 = NIFS3()
     x = []
@@ -208,7 +208,7 @@ elif choice[0] == "2":
     coordinates = []
     for file in os.listdir("./points"):
         if file.endswith(".in"):
-            coordinates.append([[(float(x), float(y)) for (x, y) in [line.rstrip().split() for line in open(f"./points/{file}", "r")][1:]]])
+            coordinates.append([(float(x), -float(y)) for (x, y) in [line.rstrip().split() for line in open(f"./points/{file}", "r")][1:]])
             tx, ty = nifs3.get_nifs3(coordinates[-1])
             x.append(tx)
             y.append(ty)
@@ -226,6 +226,7 @@ elif choice[0] == "2":
         pass
 
     def update_view():
+        global display_image, mark_dots
         plt.cla()
 
         if display_image and image is not None:
@@ -233,14 +234,17 @@ elif choice[0] == "2":
         else:
             plt.imshow(image, cmap='gray', vmin=0, vmax=1)
         
-        if mark_dots: plt.scatter(*zip(*coordinates), color = "red")
+        if mark_dots: 
+            for c in coordinates:
+                plt.scatter(*zip(*c), color = "red")
 
         for tx, ty in zip(x, y):
-            print(tx, ty)
             plt.plot(tx, ty)
+
         plt.show(block=False)
 
     def on_press(event):
+        global display_image, mark_dots
         if(event.key == 'i'): display_image = not display_image
         elif(event.key == 'm'): mark_dots = not mark_dots
         update_view()
