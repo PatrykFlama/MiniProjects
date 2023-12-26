@@ -20,7 +20,7 @@ class NIFS3:
         self.Mx = []
         self.My = []
 
-    def get_nifs3(self, points):
+    def get_nifs3(self, points, points_per_segment):
         self.x0 = []
         self.y0 = []
         for x, y in points:
@@ -30,13 +30,14 @@ class NIFS3:
         self.nifs3_update()
 
         res_x = []
-        res_y = []
-        T = self.t[0]
-        # could be in range 0, 1 and with M points => T = k/M 0<=k<=M, but this way it works with any arguemnts t
-        while T <= self.t[len(self.t)-1]:
-            res_x.append(self.calc_nifs3(T, self.x0, self.Mx))
-            res_y.append(self.calc_nifs3(T, self.y0, self.My))
-            T += resolution
+        res_y = []        
+        for segment in range(0, len(points)-1):     # walk thru segments
+            Tfrom = self.t[segment]
+            Tto = self.t[segment+1]
+            for k in range(points_per_segment[segment]): # walk thru points in segment, with given resolution   
+                T = Tfrom + k * (Tto - Tfrom) / (points_per_segment[segment]-1)
+                res_x.append(self.calc_nifs3(T, self.x0, self.Mx))
+                res_y.append(self.calc_nifs3(T, self.y0, self.My))
 
         return res_x, res_y
 
@@ -95,6 +96,8 @@ class NIFS3:
 class GUI:
     def __init__(self, image_path):
         self.coordinates = [[]]
+        self.points_per_segment = 2
+        self.resolution = [[]]
         self.nifs3 = NIFS3()
         self.done = False
         self.mark_dots = True
@@ -119,8 +122,10 @@ class GUI:
         if self.draw:
             if(event.button is MouseButton.LEFT and event.xdata is not None and event.ydata is not None):
                 self.coordinates[len(self.coordinates)-1].append((event.xdata, event.ydata))
+                self.resolution[len(self.resolution)-1].append(self.points_per_segment)
             elif(event.button is MouseButton.RIGHT and len(self.coordinates[len(self.coordinates)-1]) > 0):
                 self.coordinates[len(self.coordinates)-1].pop()
+                self.resolution[len(self.resolution)-1].pop()
             self.update_view()
     
     def on_press(self, event):
@@ -134,6 +139,14 @@ class GUI:
         elif(event.key == 'm'): self.mark_dots = not self.mark_dots
         elif(event.key == 'd'): self.draw = not self.draw
         elif(event.key == 'i'): self.display_image = not self.display_image
+        elif(event.key == '8'): self.points_per_segment += 10
+        elif(event.key == '/'): self.points_per_segment -= 10
+        elif(event.key == '='): self.points_per_segment += 1
+        elif(event.key == '-'): self.points_per_segment -= 1
+        
+        self.points_per_segment = max(2, self.points_per_segment)
+        if len(self.resolution[len(self.resolution)-1]) > 1:
+            self.resolution[len(self.resolution)-1][-2] = self.points_per_segment
         self.update_view()
 
     def update_view(self):
@@ -146,9 +159,9 @@ class GUI:
         else:
             plt.imshow(self.image, cmap='gray', vmin=0, vmax=1)
 
-        for c in self.coordinates:
+        for c, r in zip(self.coordinates, self.resolution):
             if(len(c) > 2):
-                x, y = self.nifs3.get_nifs3(c)
+                x, y = self.nifs3.get_nifs3(c, r)
                 if self.mark_dots: plt.scatter(*zip(*c), color = "red")
                 ax.plot(x, y, '-')
             else:
@@ -162,7 +175,7 @@ class GUI:
             plt.pause(0.001)
             if not plt.fignum_exists(1):
                 self.done = True
-        return self.coordinates
+        return self.coordinates, self.resolution
 
 
 
@@ -176,7 +189,7 @@ if choice[0] == "1":
         exit()
 
     gui = GUI("text.png")
-    res = gui.start()
+    res, resolution = gui.start()
 
     if not os.path.exists("./points"):
         os.makedirs("./points")
@@ -184,16 +197,17 @@ if choice[0] == "1":
     for (i, coordinates) in enumerate(res):
         if len(coordinates) == 0: continue
 
-        if os.path.exists(f"./points/points{i}.in"):
-            os.remove(f"./points/points{i}.in")
+        if os.path.exists(f"./points/points{i}.txt"):
+            os.remove(f"./points/points{i}.txt")
 
-        with open(f"./points/points{i}.in", "w") as file:
-            file.write(f"{len(coordinates)}\n")
-            for(x, y) in coordinates:
-                file.write(f"{x} {-y}\n")
+        with open(f"./points/points{i}.txt", "w") as file:
+            cnt = 0
+            for (x, y), r in zip(coordinates, resolution[i]):
+                t = cnt / (len(coordinates)-1)
+                file.write(f"{t} {x} {-y} {r}\n")
     for i in range(len(res), 100):
-        if os.path.exists(f"./points/points{i}.in"):
-            os.remove(f"./points/points{i}.in")
+        if os.path.exists(f"./points/points{i}.txt"):
+            os.remove(f"./points/points{i}.txt")
 
 elif choice[0] == "2":
     if not os.path.exists("./points"):
@@ -206,10 +220,15 @@ elif choice[0] == "2":
     x = []
     y = []
     coordinates = []
+    resolution = []
     for file in os.listdir("./points"):
-        if file.endswith(".in"):
-            coordinates.append([(float(x), -float(y)) for (x, y) in [line.rstrip().split() for line in open(f"./points/{file}", "r")][1:]])
-            tx, ty = nifs3.get_nifs3(coordinates[-1])
+        if file.endswith(".txt"):
+            tab = ([(float(x), -float(y), int(r)) for (t, x, y, r) in [line.rstrip().split() for line in open(f"./points/{file}", "r")]])
+            c = [(x, y) for x, y, r in tab]
+            r = [r for x, y, r in tab]
+            coordinates.append(c)
+            resolution.append(r)
+            tx, ty = nifs3.get_nifs3(c, r)
             x.append(tx)
             y.append(ty)
 
