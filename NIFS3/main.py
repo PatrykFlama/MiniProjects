@@ -165,6 +165,8 @@ class GUI:
         return self.coordinates
 
 
+
+
 print("1 for interactive editing mode\n2 to display points from file")
 choice = input()
 
@@ -198,18 +200,57 @@ elif choice[0] == "2":
         print("No points found")
         exit()
 
+    print("press i for image background, m for marking points\n")
+
     nifs3 = NIFS3()
     x = []
     y = []
+    coordinates = []
     for file in os.listdir("./points"):
         if file.endswith(".in"):
-            tx, ty = nifs3.get_nifs3([(float(x), float(y)) for (x, y) in [line.rstrip().split() for line in open(f"./points/{file}", "r")][1:]])
-            x += tx
-            y += ty
-
-            plt.plot(tx, ty)
+            coordinates.append([[(float(x), float(y)) for (x, y) in [line.rstrip().split() for line in open(f"./points/{file}", "r")][1:]]])
+            tx, ty = nifs3.get_nifs3(coordinates[-1])
+            x.append(tx)
+            y.append(ty)
 
     ax = plt.gca()
     ax.set_aspect('equal', adjustable='box')
-    plt.show()
+
+    display_image = True
+    mark_dots = False
+    done = False
+    image = None
+    try: 
+        image = cv2.imread("./text.png", cv2.IMREAD_GRAYSCALE)
+    except:
+        pass
+
+    def update_view():
+        plt.cla()
+
+        if display_image and image is not None:
+            plt.imshow(image, cmap='gray', vmin=0, vmax=255)
+        else:
+            plt.imshow(image, cmap='gray', vmin=0, vmax=1)
+        
+        if mark_dots: plt.scatter(*zip(*coordinates), color = "red")
+
+        for tx, ty in zip(x, y):
+            print(tx, ty)
+            plt.plot(tx, ty)
+        plt.show(block=False)
+
+    def on_press(event):
+        if(event.key == 'i'): display_image = not display_image
+        elif(event.key == 'm'): mark_dots = not mark_dots
+        update_view()
+
+    fig.canvas.callbacks.connect('key_press_event', on_press)
+
+    update_view()
+    while not done:
+        plt.pause(0.001)
+        if not plt.fignum_exists(1):
+            done = True
+
 
