@@ -93,9 +93,8 @@ void wake_up(){						// wake up the system (drawer opened)
 }
 
 void sd_init(){
-	if(!SD.begin(SD_PIN)){
+	while(!SD.begin(SD_PIN)){
 		debug Serial.println("SD card initialization failed");
-		while(1);
 	}
 }
 
@@ -317,6 +316,7 @@ void menu_settings(){
 
 void setup() {
 	debug Serial.begin(9600);
+	debug while(!Serial) {}		// wait for Serial to be ready
 	debug Serial.println("Well hello there");
 	
 	lcd.begin();
