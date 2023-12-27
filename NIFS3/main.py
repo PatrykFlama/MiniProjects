@@ -20,7 +20,7 @@ class NIFS3:
         self.Mx = []
         self.My = []
 
-    def get_nifs3(self, points, points_per_segment):
+    def get_nifs3(self, points, points_per_segment, points_list = []):
         self.x0 = []
         self.y0 = []
         for x, y in points:
@@ -30,12 +30,17 @@ class NIFS3:
         self.nifs3_update()
 
         res_x = []
-        res_y = []        
-        for segment in range(0, len(points)-1):     # walk thru segments
-            Tfrom = self.t[segment]
-            Tto = self.t[segment+1]
-            for k in range(points_per_segment[segment]): # walk thru points in segment, with given resolution   
-                T = Tfrom + k * (Tto - Tfrom) / (points_per_segment[segment]-1)
+        res_y = []       
+        if points_list == []: 
+            for segment in range(0, len(points)-1):     # walk thru segments
+                Tfrom = self.t[segment]
+                Tto = self.t[segment+1]
+                for k in range(points_per_segment[segment]): # walk thru points in segment, with given resolution   
+                    T = Tfrom + k * (Tto - Tfrom) / (points_per_segment[segment]-1)
+                    res_x.append(self.calc_nifs3(T, self.x0, self.Mx))
+                    res_y.append(self.calc_nifs3(T, self.y0, self.My))
+        else:
+            for T in points_list:
                 res_x.append(self.calc_nifs3(T, self.x0, self.Mx))
                 res_y.append(self.calc_nifs3(T, self.y0, self.My))
 
@@ -197,21 +202,38 @@ if choice[0] == "1":
 
     if not os.path.exists("./points"):
         os.makedirs("./points")
+    if not os.path.exists("./times"):
+        os.makedirs("./times")
 
     for (i, coordinates) in enumerate(res):
         if len(coordinates) == 0: continue
 
         if os.path.exists(f"./points/points{i}.txt"):
             os.remove(f"./points/points{i}.txt")
+        if os.path.exists(f"./times/times{i}.txt"):
+            os.remove(f"./times/times{i}.txt")
 
-        with open(f"./points/points{i}.txt", "w") as file:
+        with open(f"./points/points{i}.txt", "w") as file_points:
             cnt = 0
             for (x, y), r in zip(coordinates, resolution[i]):
                 t = cnt / (len(coordinates)-1)
-                file.write(f"{t} {x} {-y} {r}\n")
-    for i in range(len(res), 100):
-        if os.path.exists(f"./points/points{i}.txt"):
-            os.remove(f"./points/points{i}.txt")
+                file_points.write(f"{t} {x} {-y} {r}\n")
+                cnt += 1
+
+        with open(f"./times/times{i}.txt", "w") as file_times:
+            for segment in range(0, len(coordinates)-1):     # walk thru segments
+                Tfrom = segment / (len(coordinates)-1)
+                Tto = (segment+1) / (len(coordinates)-1)
+                for k in range(resolution[i][segment]): # walk thru points in segment, with given resolution   
+                    file_times.write(f"{Tfrom + k * (Tto - Tfrom) / (resolution[i][segment]-1)} ")
+                file_times.write("\n")
+
+    # for i in range(len(res), 100):
+    #     if os.path.exists(f"./points/points{i}.txt"):
+    #         os.remove(f"./points/points{i}.txt")
+    #     if os.path.exists(f"./times/times{i}.txt"):
+    #         os.remove(f"./times/times{i}.txt")
+
 
 elif choice[0] == "2":
     if not os.path.exists("./points"):
@@ -225,14 +247,17 @@ elif choice[0] == "2":
     y = []
     coordinates = []
     resolution = []
-    for file in os.listdir("./points"):
-        if file.endswith(".txt"):
-            tab = ([(float(x), -float(y), int(r)) for (t, x, y, r) in [line.rstrip().split() for line in open(f"./points/{file}", "r")]])
+    for file_points, file_times in zip(os.listdir("./points"), os.listdir("./times")):
+        if file_points.endswith(".txt") and file_times.endswith(".txt"):
+            times = []
+            for line in open(f"./times/{file_times}", "r"):
+                times+=([float(x) for x in line.rstrip().split()])
+            tab = ([(float(x), -float(y), int(r)) for (t, x, y, r) in [line.rstrip().split() for line in open(f"./points/{file_points}", "r")]])
             c = [(x, y) for x, y, r in tab]
             r = [r for x, y, r in tab]
             coordinates.append(c)
             resolution.append(r)
-            tx, ty = nifs3.get_nifs3(c, r)
+            tx, ty = nifs3.get_nifs3(c, r, times)
             x.append(tx)
             y.append(ty)
 
@@ -240,7 +265,7 @@ elif choice[0] == "2":
     ax.set_aspect('equal', adjustable='box')
 
     display_image = True
-    mark_dots = False
+    mark_dots = True
     done = False
     image = None
     try: 
