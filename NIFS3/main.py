@@ -187,9 +187,9 @@ class GUI:
         return self.coordinates, self.resolution
 
 
+# ------------------------------------------------------------------------------------------------------------------------
 
-
-print("1 for interactive editing mode\n2 to display points from file")
+print("1 for interactive editing mode\n2 to display points from file\n3 to count statistics\n4 to recreate times data from points data")
 choice = input()
 
 if choice[0] == "1":
@@ -300,7 +300,34 @@ elif choice[0] == "2":
         if not plt.fignum_exists(1):
             done = True
 
-elif choice[0] == "3":      # take data from points and recreate data of times
+elif choice[0] == "3":      # count nifs3 statistics
+    coordinates = []
+    resolution = []
+    times = []
+    iter = 0
+    while os.path.exists(f"./points/points{iter}.txt") and os.path.exists(f"./times/times{iter}.txt"):
+        file_points = f"points{iter}.txt"
+        file_times = f"times{iter}.txt"
+        if file_points.endswith(".txt") and file_times.endswith(".txt"):
+            t = []
+            for line in open(f"./times/{file_times}", "r"):
+                t+=([float(x) for x in line.rstrip().split()])
+            tab = ([(float(x), -float(y), int(r)) for (t, x, y, r) in [line.rstrip().split() for line in open(f"./points/{file_points}", "r")]])
+            c = [(x, y) for x, y, r in tab]
+            r = [r for x, y, r in tab]
+            coordinates.append(c)
+            resolution.append(r)
+            times.append(t)
+        iter += 1
+    
+    print("Number of functions used:", len(coordinates))
+    print("Number of total interpolation points used:", sum([len(c) for c in coordinates]))
+    print("Number of total drawing points used:", sum([len(t) for t in times]))
+    print("\nNumber of interpolation and drawing points used for each function:")
+    for i in range(len(coordinates)):
+        print(f"Function {i+1}: {len(coordinates[i])} interpolation points, {len(times[i])} drawing points")
+
+elif choice[0] == "4":      # take data from points and recreate data of times
     for file_points, file_times in zip(os.listdir("./points"), os.listdir("./times")):
         if file_points.endswith(".txt") and file_times.endswith(".txt"):
             tab = ([(float(x), -float(y), int(r)) for (t, x, y, r) in [line.rstrip().split() for line in open(f"./points/{file_points}", "r")]])
