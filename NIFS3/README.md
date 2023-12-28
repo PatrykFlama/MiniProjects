@@ -2,7 +2,8 @@
 
 ## Description
 This is a implementation of natural cubic spline function integrated with pyplot with simple function editor.   
-It is possible to save and load functions from files [./points/point{i}.txt](./points) - where {i} is number of function and in every line of file there is a point in format: `t x y` where `t` is parameter and `x` and `y` are coordinates of point.  
+It is possible to save and load functions from files [./points/point{i}.txt](./points) - where {i} is number of function and in every line of file there is a point in format: `t x y r` where `t` is parameter, `x` and `y` are coordinates of point and `r` determines amount of segments that create the preview spline image.  
+In the [./times/times{i}.txt](./times) files there are arguments for output function that we will draw.  
 
 ## How to use
 Run `python main.py`  

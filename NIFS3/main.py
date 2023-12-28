@@ -228,12 +228,6 @@ if choice[0] == "1":
                     file_times.write(f"{Tfrom + k * (Tto - Tfrom) / (resolution[i][segment]-1)} ")
                 file_times.write("\n")
 
-    # for i in range(len(res), 100):
-    #     if os.path.exists(f"./points/points{i}.txt"):
-    #         os.remove(f"./points/points{i}.txt")
-    #     if os.path.exists(f"./times/times{i}.txt"):
-    #         os.remove(f"./times/times{i}.txt")
-
 
 elif choice[0] == "2":
     if not os.path.exists("./points"):
@@ -241,6 +235,19 @@ elif choice[0] == "2":
         exit()
 
     print("press i for image background, m for marking input points\n")
+
+    ax = plt.gca()
+    ax.set_aspect('equal', adjustable='box')
+
+    display_image = True
+    mark_dots = True
+    done = False
+    image = None
+    try: 
+        image = cv2.imread("./text.png", cv2.IMREAD_GRAYSCALE)
+    except:
+        pass
+
 
     nifs3 = NIFS3()
     x = []
@@ -260,18 +267,6 @@ elif choice[0] == "2":
             tx, ty = nifs3.get_nifs3(c, r, times)
             x.append(tx)
             y.append(ty)
-
-    ax = plt.gca()
-    ax.set_aspect('equal', adjustable='box')
-
-    display_image = True
-    mark_dots = True
-    done = False
-    image = None
-    try: 
-        image = cv2.imread("./text.png", cv2.IMREAD_GRAYSCALE)
-    except:
-        pass
 
     def update_view():
         global display_image, mark_dots
@@ -305,4 +300,18 @@ elif choice[0] == "2":
         if not plt.fignum_exists(1):
             done = True
 
+elif choice[0] == "3":      # take data from points and recreate data of times
+    for file_points, file_times in zip(os.listdir("./points"), os.listdir("./times")):
+        if file_points.endswith(".txt") and file_times.endswith(".txt"):
+            tab = ([(float(x), -float(y), int(r)) for (t, x, y, r) in [line.rstrip().split() for line in open(f"./points/{file_points}", "r")]])
+            c = [(x, y) for x, y, r in tab]
+            r = [r for x, y, r in tab]
+            
+            with open(f"./times/{file_times}", "w") as file_times:
+                for segment in range(0, len(c)-1):     # walk thru segments
+                    Tfrom = segment / (len(c)-1)
+                    Tto = (segment+1) / (len(c)-1)
+                    for k in range(r[segment]): # walk thru points in segment, with given resolution   
+                        file_times.write(f"{Tfrom + k * (Tto - Tfrom) / (r[segment]-1)} ")
+                    file_times.write("\n")
 
