@@ -2,6 +2,7 @@ import requests
 import re
 from datetime import datetime, timedelta
 import json
+import sys
 
 DEBUG = False
 dprint = print if DEBUG else lambda *args, **kwargs: None
@@ -9,7 +10,13 @@ dprint = print if DEBUG else lambda *args, **kwargs: None
 # OLLAMA_URL = "http://localhost:11434/api/generate"
 OLLAMA_URL = "http://192.168.10.15:11434/api/generate"
 MODEL = "llama3.2:3b"
-MODEL = "mwiewior/bielik"
+# MODEL = "mwiewior/bielik"
+
+INPUT_FILE = "wa_chat.txt"
+N_BLOCKS = 25
+MIN_GAP = 30
+SUMM_STYLE = "oneblock_chain"
+SEPARATE_BLOCKS = False
 
 prompt_base = "Podsumuj szczegółowo i długo następującą rozmowę, podaj TYLKO podsumowanie"
 summarize_all_prompt = "Podam wszystkie poprzednie podsumowania, zredaguj je odpowienio i szczegółowo. (tutaj możesz wypisać dużo informacji):\n"
@@ -77,22 +84,37 @@ def query_ollama(text, prev_summary=None, summary_style="simple_chain"):
     prompt = ""
     if summary_style == "oneblock_chain":
         prompt = prompt_base + "" + \
-        (", uwzględnij poprzednią odpowiedź w tej odpowiedzi" if prev_summary else "") + ":\n\n" + text
+        (", uwzględnij poprzednią odpowiedź w tej odpowiedzi (dodaj ją do tej odpowiedzi)" if prev_summary and SEPARATE_BLOCKS else "") + ":\n\n"
     elif summary_style == "simple_chain" or summary_style:
-        prompt = prompt_base + ":\n\n" + text
+        prompt = prompt_base + ":\n\n"
     elif summary_style == "summarize_all":
-        prompt = summarize_all_prompt + ":\n\n" + text
+        prompt = summarize_all_prompt + ":\n\n"
+
+    prompt += "\n===========================\n"
 
     if prev_summary:
-        prompt = f"Odpowiedź do poprzedniego fragmentu: \n{prev_summary}\n\n{prompt}"
+        if SEPARATE_BLOCKS:
+            prompt = f"{prompt}\n===== Odpowiedź do poprzedniego fragmentu: =====\n{prev_summary}\n\n===== Nowy fragment: ====\n{text}"
+        else:
+            prompt = f"{prompt}\n{prev_summary}\n\n{text}\n"
+    else:
+        prompt = f"{prompt}\n{text}\n"
 
+    prompt += "\n######\n"
 
     dprint("----------------Prompt:----------------")
     dprint(prompt)
 
-    response = requests.post(OLLAMA_URL, json={"model": MODEL, "prompt": prompt, "options": {"reset": True}, "stream": True})
-
-    dprint("=====================RESPTXT=====================")
+    response = requests.post(OLLAMA_URL, json={
+        "model": MODEL, 
+        "prompt": prompt, 
+        "options": {
+            "reset": True,
+            "temperature": 0.2,  # reduce randomness
+            "stop": ["######"],  # helps prevent it from hallucinating extra content
+        }, 
+        "stream": True
+    })
 
     summary = ""
     for line in response.iter_lines():
@@ -154,14 +176,18 @@ def process_chat(chat_file, n_blocks, min_gap, output_file="summary.txt", summar
 
 
 
-# n_blocks - number of blocks to divide chat into
-# min_gap_min - minimum time gap between blocks in minutes (to not split in the middle of a conversation)
-# summary style = 
-    # summarize_all - summarize all blocks together
-    # oneblock_chain - for each block create summary of block and previous summary
-    # simple_chain - generate summary for each block separately only feeding previous summary
-    # double_layer - first generate simple_chain, then summarize it
-    # isolated_chain - generate summary for each block separately without feeding previous summary
-    # isolated_double_layer - generate isolated_chain, then summarize it
+if __name__ == "__main__":
+    if len(sys.argv) > 1 and sys.argv[1] in ["q", "-q"]:
+        print("Enter your question:")
+        question = input()
 
-process_chat("wa_chat.txt", n_blocks=30, min_gap=60, summary_style="oneblock_chain")
+        question = "W kontekście podanych informacji odpowiedz na pytanie:\n" + question + "\n"
+
+        temp = prompt_base
+        prompt_base = question
+        response = process_chat(INPUT_FILE, n_blocks=N_BLOCKS, min_gap=MIN_GAP, summary_style=SUMM_STYLE)
+        prompt_base = temp
+
+        print("Response:", response)
+    else:
+        process_chat(INPUT_FILE, n_blocks=N_BLOCKS, min_gap=MIN_GAP, summary_style=SUMM_STYLE)
