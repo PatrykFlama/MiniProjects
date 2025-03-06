@@ -1,0 +1,2 @@
+# WhatsApp summarizer
+takes in exported messages from whatsapp, splits them into blocks (while ensuring to not break single conversation chain) and then asks ollama to summarize it (few methods of summarizatino available)  
