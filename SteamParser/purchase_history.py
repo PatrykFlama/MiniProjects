@@ -7,9 +7,14 @@ from collections import defaultdict, Counter
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import matplotlib.dates as mdates
+import csv
 
 EUR_TO_PLN = 4.30  # <-- update with real-time rate if needed
 CACHE_FILE = "game_tags_cache.out"
+EXPORT_FILE = "purchase_history.csv"
+
+
+# ================== PARSING FUNCTIONS ==================
 def split_transactions(lines):
     """
     Splits the input lines into a list of lists, each containing the lines for a single transaction.
@@ -45,7 +50,7 @@ def parse_file(file_path):
         date_match = re.match(r'(\d{1,2} \w{3}, \d{4})(?:\t([^\t]+))?', line)
         if date_match:
             date = datetime.strptime(date_match.group(1), '%d %b, %Y')
-            special_transaction = date_match.group(2) if date_match.group(2) else ""
+            # special_transaction = date_match.group(2) if date_match.group(2) else ""
             i += 1
 
             transaction_type = ""
@@ -209,6 +214,8 @@ def parse_file(file_path):
 
     return transactions
 
+
+# ================== TAGS FETCHING ==================
 def load_tag_cache():
     if os.path.exists(CACHE_FILE):
         with open(CACHE_FILE, 'r', encoding='utf-8') as f:
@@ -219,20 +226,41 @@ def save_tag_cache(cache):
     with open(CACHE_FILE, 'w', encoding='utf-8') as f:
         json.dump(cache, f, ensure_ascii=False, indent=2)
 
+def load_missing_games():
+    missing_file = "missing_" + CACHE_FILE
+    if os.path.exists(missing_file):
+        with open(missing_file, 'r', encoding='utf-8') as f:
+            return set(line.strip() for line in f if line.strip())
+    return set()
+
+def save_missing_games(missing_games):
+    missing_file = "missing_" + CACHE_FILE
+    with open(missing_file, 'w', encoding='utf-8') as f:
+        for name in missing_games:
+            f.write(name + "\n")
+
 def fetch_game_tags(games):
     tag_counts = defaultdict(int)
     cache = load_tag_cache()
     updated = False
+    missing_games = load_missing_games()
+    cache_cnt = 0
 
     for name in tqdm(games, desc="Fetching game tags", unit="game"):
         if name in cache:
             tags = cache[name]
+            cache_cnt += 1
+        elif name in missing_games:
+            tags = []
+            continue
         else:
             try:
                 r = requests.get('https://steamcommunity.com/actions/SearchApps/' + name)
                 results = r.json()
                 if not results:
+                    missing_games.add(name)
                     continue
+
                 appid = results[0]['appid']
                 details = requests.get(f'https://store.steampowered.com/api/appdetails?appids={appid}&cc=pl&l=english').json()
                 tags = details[str(appid)]['data'].get('genres', [])
@@ -240,24 +268,34 @@ def fetch_game_tags(games):
                 cache[name] = tags
                 updated = True
             except Exception:
+                missing_games.add(name)
                 continue
         for tag in tags:
             tag_counts[tag] += 1
 
     if updated:
         save_tag_cache(cache)
+    if missing_games:
+        save_missing_games(missing_games)
+
+    print(f"Cache hit: {cache_cnt}/{len(games)} games")
+    if not tag_counts:
+        print("No tags found for the games.")
+        return {}
+    print(f"Total tags found: {len(tag_counts)}")
+
     return tag_counts
 
 
 # ================== PLOTTING ==================
-def plot_spending_over_time(transactions):
+def plot_spending_over_time(transactions, plot_game_names=False):
     dates = [t['date'] for t in transactions]
     spends = [t['spent'] for t in transactions]
+    game_names = [", ".join(t['items']) if t['items'] else "" for t in transactions]
     if not dates or not spends:
         print("No data to plot.")
         return
-    
-    # Spending over time
+
     plt.figure(figsize=(10, 4))
     plt.plot(dates, spends, marker='o', linestyle='-', label='Spent')
     plt.title("Money spent over time")
@@ -267,17 +305,39 @@ def plot_spending_over_time(transactions):
     plt.gcf().autofmt_xdate()
     plt.legend()
     plt.tight_layout()
+
+    if plot_game_names:
+        for x, y, name in zip(dates, spends, game_names):
+            if name:
+                plt.annotate(
+                    name,
+                    (x, y),
+                    textcoords="offset points",
+                    xytext=(0, 10),
+                    ha='center',
+                    fontsize=8,
+                    rotation=30,
+                    color='tab:blue',
+                    alpha=0.7
+                )
+
     plt.show()
 
-def plot_spet_sum_over_time(transactions):
-    dates = [t['date'] for t in transactions]
-    spends = [t['spent'] for t in transactions]
-    cumulative_spends = [sum(spends[:i+1]) for i in range(len(spends))]
-    
+def plot_spent_sum_over_time(transactions):
+    # Sort transactions by date ascending
+    sorted_transactions = sorted(transactions, key=lambda t: t['date'])
+    dates = [t['date'] for t in sorted_transactions]
+    spends = [t['spent'] for t in sorted_transactions]
+    cumulative_spends = []
+    total = 0
+    for s in spends:
+        total += s
+        cumulative_spends.append(total)
+
     if not dates or not cumulative_spends:
         print("No data to plot.")
         return
-    
+
     # Cumulative spending over time
     plt.figure(figsize=(10, 4))
     plt.plot(dates, cumulative_spends, marker='o', linestyle='-', label='Cumulative Spent')
@@ -335,18 +395,33 @@ def plot_game_tags(transactions):
 
 
 # ================== MAIN FUNCTION ==================
-def plot_stats(transactions):
+def export_transactions_to_csv(transactions):
+    with open(EXPORT_FILE, 'w', newline='', encoding='utf-8') as csvfile:
+        fieldnames = ['date', 'items', 'type', 'spent', 'wallet_change', 'balance', 'payment_method']
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 
-    dates = [t['date'] for t in transactions]
+        writer.writeheader()
+        for t in transactions:
+            writer.writerow({
+                'date': t['date'].strftime('%Y-%m-%d'),
+                'items': ', '.join(t['items']),
+                'type': t['type'],
+                'spent': t['spent'],
+                'wallet_change': t['wallet_change'],
+                'balance': t['balance'],
+                'payment_method': ', '.join(t['payment_method'])
+            })
+    print(f"Transactions exported to {EXPORT_FILE}")
+
+def plot_stats(transactions):
     spends = [t['spent'] for t in transactions]
-    balances = [t['balance'] for t in transactions if t['balance'] is not None]
-    balance_dates = [t['date'] for t in transactions if t['balance'] is not None]
 
     total_spent = sum(spends)
     print(f"💸 Total spent: {total_spent:.2f} PLN")
 
     # Payment methods
-    methods = Counter(t['payment_method'] for t in transactions if t['payment_method'])
+    all_methods = [pm for t in transactions for pm in t['payment_method']]
+    methods = Counter(all_methods)
     print("\n📌 Most frequent payment methods:")
     for method, count in methods.most_common():
         print(f"  {method}: {count}x")
@@ -362,9 +437,10 @@ def plot_stats(transactions):
 
     # Spending over time
     plot_spending_over_time(transactions)
+    plot_spending_over_time(transactions, plot_game_names=True)
 
     # Cumulative spending over time
-    plot_spet_sum_over_time(transactions)
+    plot_spent_sum_over_time(transactions)
 
     # Wallet balance over time
     wallet_balance_over_time(transactions)
@@ -381,6 +457,8 @@ def main():
         print(t)
 
     plot_stats(transactions)
+
+    export_transactions_to_csv(transactions)
 
 if __name__ == "__main__":
     main()
