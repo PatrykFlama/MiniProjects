@@ -56,7 +56,7 @@ def parse_file(file_path):
             transaction_type = ""
             items = []
             while i < len(block) and not re.match(r'\d{1,2} \w{3}, \d{4}(?:\t([^\t]+))?', block[i]):
-                if re.match(r'Purchase', block[i]) and transaction_type == "":
+                if re.match(r'(Purchase|Refund)', block[i]) and transaction_type == "":
                     transaction_type = block[i]
                     i += 1
                     break
@@ -206,7 +206,7 @@ def parse_file(file_path):
                 'date': date,
                 'items': items,
                 'type': transaction_type,
-                'spent': spent-wallet_change,
+                'spent': (spent-wallet_change) if transaction_type != "Refund" else -spent,
                 'wallet_change': wallet_change,
                 'balance': balance,
                 'payment_method': payment_method
@@ -239,37 +239,83 @@ def save_missing_games(missing_games):
         for name in missing_games:
             f.write(name + "\n")
 
+def generate_name_variants(name):
+    """Generate variants by removing up to 50% of words from the end, one at a time."""
+    words = name.split()
+    variants = []
+    n = len(words)
+    min_words = max(1, n // 2)
+    for i in range(n, min_words - 1, -1):
+        variant = " ".join(words[:i])
+        if variant:
+            variants.append(variant)
+    return variants
+
+def save_name_simmilarities(variant_for_name):
+    """Save matching word percentage, original name and variant to a file"""
+    simm_file = 'simm_' + CACHE_FILE
+    with open(simm_file, 'w', encoding='utf-8') as f:
+        for original, variant in variant_for_name.items():
+            original_words = set(original.split())
+            variant_words = set(variant.split())
+            common_words = original_words.intersection(variant_words)
+            simm_percentage = len(common_words) / len(original_words) * 100 if original_words else 0
+            f.write(f"{simm_percentage:.2f}%\t{original}\t{variant}\n")
+
 def fetch_game_tags(games):
     tag_counts = defaultdict(int)
     cache = load_tag_cache()
     updated = False
     missing_games = load_missing_games()
     cache_cnt = 0
+    requests_cnt = 0
+    variant_for_name = {}
 
     for name in tqdm(games, desc="Fetching game tags", unit="game"):
-        if name in cache:
-            tags = cache[name]
-            cache_cnt += 1
-        elif name in missing_games:
-            tags = []
-            continue
-        else:
-            try:
-                r = requests.get('https://steamcommunity.com/actions/SearchApps/' + name)
-                results = r.json()
-                if not results:
-                    missing_games.add(name)
+        found = False
+        tags = []
+        tried_variants = []
+
+        # Check if the name is already in the cache or missing games
+        for variant in generate_name_variants(name):
+            tried_variants.append(variant)
+            if variant in cache:
+                cache_cnt += 1
+                tags = cache[variant]
+                found = True
+                variant_for_name[name] = variant
+                break
+            elif variant in missing_games:
+                cache_cnt += 1
+                tags = []
+                found = True
+                break
+
+        # If not found in cache or missing games, make a request
+        if not found:
+            for variant in generate_name_variants(name):
+                try:
+                    requests_cnt += 1
+                    r = requests.get('https://steamcommunity.com/actions/SearchApps/' + variant)
+                    results = r.json()
+                    if not results:
+                        continue
+                    appid = results[0]['appid']
+                    details = requests.get(f'https://store.steampowered.com/api/appdetails?appids={appid}&cc=pl&l=english').json()
+                    tags = details[str(appid)]['data'].get('genres', [])
+                    tags = [tag['description'] for tag in tags]
+                    cache[variant] = tags
+                    updated = True
+                    found = True
+                    variant_for_name[name] = variant
+                    break
+                except Exception:
                     continue
 
-                appid = results[0]['appid']
-                details = requests.get(f'https://store.steampowered.com/api/appdetails?appids={appid}&cc=pl&l=english').json()
-                tags = details[str(appid)]['data'].get('genres', [])
-                tags = [tag['description'] for tag in tags]
-                cache[name] = tags
-                updated = True
-            except Exception:
-                missing_games.add(name)
-                continue
+
+        if not found:
+            missing_games.add(name)
+            continue
         for tag in tags:
             tag_counts[tag] += 1
 
@@ -278,7 +324,11 @@ def fetch_game_tags(games):
     if missing_games:
         save_missing_games(missing_games)
 
+    if variant_for_name:
+        save_name_simmilarities(variant_for_name)
+
     print(f"Cache hit: {cache_cnt}/{len(games)} games")
+    print(f"Requests made: {requests_cnt}")
     if not tag_counts:
         print("No tags found for the games.")
         return {}
@@ -395,6 +445,19 @@ def plot_game_tags(transactions):
 
 
 # ================== MAIN FUNCTION ==================
+def pretty_print_transaction(transaction):
+    date_str = transaction['date'].strftime('%Y-%m-%d')
+    items_str = ', '.join(transaction['items']) if transaction['items'] else "No items"
+    type_str = transaction['type'] if transaction['type'] else "Unknown"
+    spent_str = f"{transaction['spent']:.2f} PLN"
+    wallet_change_str = f"{transaction['wallet_change']:.2f} PLN" if transaction['wallet_change'] else "0.00 PLN"
+    balance_str = f"{transaction['balance']:.2f} PLN" if transaction['balance'] is not None else "N/A"
+    payment_method_str = ', '.join(transaction['payment_method']) if transaction['payment_method'] else "Unknown"
+
+    print(f"Date: {date_str}, Items: {items_str}, Type: {type_str}, Spent: {spent_str}, "
+          f"Wallet Change: {wallet_change_str}, Balance: {balance_str}, Payment Method: {payment_method_str}")
+
+
 def export_transactions_to_csv(transactions):
     with open(EXPORT_FILE, 'w', newline='', encoding='utf-8') as csvfile:
         fieldnames = ['date', 'items', 'type', 'spent', 'wallet_change', 'balance', 'payment_method']
@@ -413,31 +476,15 @@ def export_transactions_to_csv(transactions):
             })
     print(f"Transactions exported to {EXPORT_FILE}")
 
+
 def plot_stats(transactions):
     spends = [t['spent'] for t in transactions]
-
     total_spent = sum(spends)
-    print(f"💸 Total spent: {total_spent:.2f} PLN")
-
-    # Payment methods
-    all_methods = [pm for t in transactions for pm in t['payment_method']]
-    methods = Counter(all_methods)
-    print("\n📌 Most frequent payment methods:")
-    for method, count in methods.most_common():
-        print(f"  {method}: {count}x")
-
-    # Game frequency
-    game_counter = Counter()
-    for t in transactions:
-        for game in t['items']:
-            game_counter[game] += 1
-    print("\n🎮 Most purchased games:")
-    for game, count in game_counter.most_common(5):
-        print(f"  {game}: {count}x")
+    print(f"Total spent: {total_spent:.2f} PLN")
 
     # Spending over time
     plot_spending_over_time(transactions)
-    plot_spending_over_time(transactions, plot_game_names=True)
+    # plot_spending_over_time(transactions, plot_game_names=True)
 
     # Cumulative spending over time
     plot_spent_sum_over_time(transactions)
@@ -453,8 +500,8 @@ def main():
     file_path = "purchase_history.in"  # or whatever your file is
     transactions = parse_file(file_path)
 
-    for t in transactions[:10]:
-        print(t)
+    for t in transactions:
+        pretty_print_transaction(t)
 
     plot_stats(transactions)
 
