@@ -3,11 +3,12 @@ import requests
 import json
 import os
 from datetime import datetime
-from collections import defaultdict, Counter
+from collections import defaultdict
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import matplotlib.dates as mdates
 import csv
+import random
 
 EUR_TO_PLN = 4.30  # <-- update with real-time rate if needed
 CACHE_FILE = "game_tags_cache.out"
@@ -262,6 +263,19 @@ def save_name_simmilarities(variant_for_name):
             simm_percentage = len(common_words) / len(original_words) * 100 if original_words else 0
             f.write(f"{simm_percentage:.2f}%\t{original}\t{variant}\n")
 
+def load_name_simmilarities():
+    simm_file = 'simm_' + CACHE_FILE
+    if os.path.exists(simm_file):
+        with open(simm_file, 'r', encoding='utf-8') as f:
+            simmilarities = {}
+            for line in f:
+                parts = line.strip().split('\t')
+                if len(parts) == 3:
+                    _, original, variant = parts
+                    simmilarities[original] = variant
+            return simmilarities
+    return {}
+
 def fetch_game_tags(games):
     tag_counts = defaultdict(int)
     cache = load_tag_cache()
@@ -327,12 +341,12 @@ def fetch_game_tags(games):
     if variant_for_name:
         save_name_simmilarities(variant_for_name)
 
-    print(f"Cache hit: {cache_cnt}/{len(games)} games")
-    print(f"Requests made: {requests_cnt}")
-    if not tag_counts:
-        print("No tags found for the games.")
-        return {}
-    print(f"Total tags found: {len(tag_counts)}")
+    # print(f"Cache hit: {cache_cnt}/{len(games)} games")
+    # print(f"Requests made: {requests_cnt}")
+    # if not tag_counts:
+    #     print("No tags found for the games.")
+    #     return {}
+    # print(f"Total tags found: {len(tag_counts)}")
 
     return tag_counts
 
@@ -342,12 +356,57 @@ def plot_spending_over_time(transactions, plot_game_names=False):
     dates = [t['date'] for t in transactions]
     spends = [t['spent'] for t in transactions]
     game_names = [", ".join(t['items']) if t['items'] else "" for t in transactions]
+
+    # Filter out transactions with zero spent or of type "Market Transaction"
+    if plot_game_names:
+        filtered = [
+            (d, s, n)
+            for d, s, n, t in zip(dates, spends, game_names, [t['type'] for t in transactions])
+            if s != 0 and t != "Market Transaction"
+        ]
+        if not filtered:
+            print("No non-zero, non-market transactions to plot.")
+            return
+        dates, spends, game_names = zip(*filtered)
+
     if not dates or not spends:
         print("No data to plot.")
         return
 
     plt.figure(figsize=(10, 4))
-    plt.plot(dates, spends, marker='o', linestyle='-', label='Spent')
+
+    if plot_game_names:
+        # Assign a unique color to each game name
+        unique_names = list(set(game_names))
+        color_map = {name: [random.random() for _ in range(3)] for name in unique_names}
+
+        # Plot each point individually with its color
+        for x, y, name in zip(dates, spends, game_names):
+            color = color_map.get(name, [0, 0, 0])
+            plt.plot(x, y, marker='o', linestyle='', color=color)
+        plt.plot([], [], marker='o', linestyle='', color='black', label='Spent')  # For legend
+
+        # Load name similarities if available
+        variant_for_name = load_name_simmilarities()
+
+        for x, y, name in zip(dates, spends, game_names):
+            display_name = variant_for_name.get(name, name)
+            if display_name:
+                color = color_map.get(name, [0, 0, 0])
+                plt.annotate(
+                    display_name,
+                    (x, y),
+                    textcoords="offset points",
+                    xytext=(0, 10),
+                    ha='center',
+                    fontsize=8,
+                    rotation=30,
+                    color=color,
+                    alpha=0.7
+                )
+    else:
+        plt.plot(dates, spends, marker='o', linestyle='-', label='Spent')
+
     plt.title("Money spent over time")
     plt.ylabel("Amount [PLN]")
     plt.grid(True)
@@ -355,22 +414,6 @@ def plot_spending_over_time(transactions, plot_game_names=False):
     plt.gcf().autofmt_xdate()
     plt.legend()
     plt.tight_layout()
-
-    if plot_game_names:
-        for x, y, name in zip(dates, spends, game_names):
-            if name:
-                plt.annotate(
-                    name,
-                    (x, y),
-                    textcoords="offset points",
-                    xytext=(0, 10),
-                    ha='center',
-                    fontsize=8,
-                    rotation=30,
-                    color='tab:blue',
-                    alpha=0.7
-                )
-
     plt.show()
 
 def plot_spent_sum_over_time(transactions):
@@ -433,6 +476,9 @@ def plot_game_tags(transactions):
     if not tag_counts:
         print("No tags found for the games.")
         return
+    
+    # Sort tags by frequency
+    tag_counts = dict(sorted(tag_counts.items(), key=lambda item: item[1], reverse=True))
 
     # Plotting tags
     plt.figure(figsize=(10, 6))
@@ -484,7 +530,6 @@ def plot_stats(transactions):
 
     # Spending over time
     plot_spending_over_time(transactions)
-    # plot_spending_over_time(transactions, plot_game_names=True)
 
     # Cumulative spending over time
     plot_spent_sum_over_time(transactions)
@@ -495,13 +540,16 @@ def plot_stats(transactions):
     # Tags
     plot_game_tags(transactions)
 
+    # Plot game names over time
+    plot_spending_over_time(transactions, plot_game_names=True)
+
 
 def main():
     file_path = "purchase_history.in"  # or whatever your file is
     transactions = parse_file(file_path)
 
-    for t in transactions:
-        pretty_print_transaction(t)
+    # for t in transactions:
+    #     pretty_print_transaction(t)
 
     plot_stats(transactions)
 
